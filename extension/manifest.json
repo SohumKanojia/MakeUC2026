@@ -1,0 +1,22 @@
+{
+  "manifest_version": 3,
+  "name": "Braille Glove - Hover Reader",
+  "version": "0.1.0",
+  "description": "Brailles whatever is under the mouse onto a haptic glove, via a local serial bridge.",
+  "permissions": ["storage", "scripting", "activeTab"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["braille.js", "content.js"],
+      "run_at": "document_idle",
+      "all_frames": false
+    }
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Braille Glove"
+  }
+}

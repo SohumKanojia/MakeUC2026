@@ -1,0 +1,17 @@
+# Build artifacts
+firmware/test/test_firmware.exe
+firmware/test/*.exe
+*.o
+
+# Python
+__pycache__/
+*.py[cod]
+
+# Secrets: the Gemini key lives in the environment, never in the repo
+.env
+*.key
+
+# Editor / tooling
+.claude/
+.vscode/
+.DS_Store

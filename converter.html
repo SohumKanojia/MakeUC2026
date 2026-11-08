@@ -1,0 +1,335 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Text to Braille</title>
+<style>
+  :root {
+    color-scheme: light dark;
+    --bg: #ffffff; --panel: #f6f6f9; --fg: #16161c; --muted: #61616f;
+    --line: #e2e2ea; --accent: #c06a00; --accent-soft: #ffeccd;
+    --dot-off: #d8d8e2; --dot-edge: #c6c6d2;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0e0e12; --panel: #16161d; --fg: #e9e9ef; --muted: #8d8d9b;
+      --line: #27272f; --accent: #ffb43a; --accent-soft: #3a2a08;
+      --dot-off: #24242d; --dot-edge: #33333d;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0e0e12; --panel: #16161d; --fg: #e9e9ef; --muted: #8d8d9b;
+    --line: #27272f; --accent: #ffb43a; --accent-soft: #3a2a08;
+    --dot-off: #24242d; --dot-edge: #33333d;
+  }
+
+  * { box-sizing: border-box }
+  body {
+    margin: 0; background: var(--bg); color: var(--fg);
+    font: 15px/1.55 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+    padding: 28px 16px 80px;
+  }
+  main { max-width: 860px; margin: 0 auto }
+  h1 { font-size: 24px; margin: 0 0 4px; letter-spacing: -.01em }
+  .sub { color: var(--muted); margin: 0 0 22px; font-size: 14px }
+
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 16px; margin-bottom: 14px }
+  .panel h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .07em; color: var(--muted); margin: 0 0 12px; font-weight: 600 }
+
+  textarea {
+    width: 100%; min-height: 92px; resize: vertical; font: inherit;
+    padding: 11px 13px; border-radius: 9px; border: 1px solid var(--line);
+    background: var(--bg); color: var(--fg);
+  }
+  textarea:focus { outline: 2px solid var(--accent); outline-offset: 1px; border-color: transparent }
+
+  .opts { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px }
+  .chip {
+    display: inline-flex; align-items: center; gap: 7px; cursor: pointer; user-select: none;
+    border: 1px solid var(--line); border-radius: 999px; padding: 6px 13px 6px 10px;
+    font-size: 13px; background: var(--bg);
+  }
+  .chip:has(input:checked) { border-color: var(--accent); background: var(--accent-soft); color: var(--accent) }
+  .chip input { margin: 0; accent-color: var(--accent) }
+
+  .stats { display: flex; flex-wrap: wrap; gap: 20px; margin-top: 13px; font-size: 13px; color: var(--muted) }
+  .stats b { color: var(--fg); font-variant-numeric: tabular-nums }
+  .warn { color: var(--accent) }
+
+  .uni {
+    font-size: 30px; line-height: 1.5; word-break: break-all; min-height: 45px;
+    font-family: "Segoe UI Symbol", "Apple Symbols", "DejaVu Sans", serif;
+  }
+
+  .cells { display: flex; flex-wrap: wrap; gap: 9px }
+  .cellbox {
+    border: 1px solid var(--line); border-radius: 9px; padding: 8px 9px 6px;
+    background: var(--bg); text-align: center; min-width: 50px;
+  }
+  .cellbox.active { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-soft) }
+  .cellbox.sign { border-style: dashed }
+  .grid { display: grid; grid-template-columns: 11px 11px; grid-gap: 4px; justify-content: center }
+  .grid i { width: 11px; height: 11px; border-radius: 50%; background: var(--dot-off); border: 1px solid var(--dot-edge) }
+  .grid i.on { background: var(--accent); border-color: var(--accent) }
+  .cap { font: 600 12px/1.4 ui-monospace, Consolas, monospace; margin-top: 6px }
+  .byte { font: 11px/1.2 ui-monospace, Consolas, monospace; color: var(--muted) }
+
+  .btnrow { display: flex; flex-wrap: wrap; gap: 8px; align-items: center }
+  button {
+    font: inherit; font-size: 14px; padding: 8px 15px; border-radius: 8px;
+    border: 1px solid var(--line); background: var(--bg); color: var(--fg); cursor: pointer;
+  }
+  button:hover:not(:disabled) { border-color: var(--accent); color: var(--accent) }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #1a1205; font-weight: 600 }
+  button.primary:hover:not(:disabled) { color: #1a1205; filter: brightness(1.07) }
+  button:disabled { opacity: .45; cursor: default }
+
+  .status { display: inline-flex; align-items: center; gap: 7px; font-size: 13px; color: var(--muted); margin-left: auto }
+  .led { width: 9px; height: 9px; border-radius: 50%; background: #9a9aa8 }
+  .led.connected { background: #2eb872 }
+  .led.connecting { background: var(--accent) }
+  .led.disconnected { background: #e4574c }
+
+  .sliders { display: flex; flex-wrap: wrap; gap: 18px; margin-top: 13px; font-size: 13px; color: var(--muted) }
+  .sliders label { display: flex; align-items: center; gap: 8px }
+  input[type=range] { accent-color: var(--accent); width: 110px }
+
+  pre.bytes {
+    margin: 0; font: 12px/1.6 ui-monospace, Consolas, monospace; color: var(--muted);
+    white-space: pre-wrap; word-break: break-all; max-height: 110px; overflow: auto;
+  }
+  @media (max-width: 560px) { .uni { font-size: 24px } }
+</style>
+</head>
+<body>
+<main>
+  <h1>Text to Braille</h1>
+  <p class="sub">Grade 1, six-dot cells. The same converter the extension and the glove use.</p>
+
+  <div class="panel">
+    <h2>Text</h2>
+    <textarea id="input" spellcheck="false">Hello, World! 42 dots.</textarea>
+    <div class="opts">
+      <label class="chip"><input type="checkbox" id="capitals"> Capitals <span class="byte">dot 6</span></label>
+      <label class="chip"><input type="checkbox" id="numbers"> Numbers <span class="byte">dots 3456</span></label>
+      <label class="chip"><input type="checkbox" id="punctuation"> Punctuation</label>
+    </div>
+    <div class="stats">
+      <span><b id="statCells">0</b> cells</span>
+      <span><b id="statChars">0</b> characters in</span>
+      <span>about <b id="statTime">0s</b> on the palm</span>
+      <span id="statDropped" class="warn"></span>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>Braille</h2>
+    <div class="uni" id="unicode"></div>
+  </div>
+
+  <div class="panel">
+    <h2>Cells</h2>
+    <div class="cells" id="cells"></div>
+  </div>
+
+  <div class="panel">
+    <h2>Send to glove</h2>
+    <div class="btnrow">
+      <button class="primary" id="play">Play on glove</button>
+      <button id="stop" disabled>Stop</button>
+      <button id="copy">Copy bytes</button>
+      <span class="status"><span class="led disconnected" id="led"></span><span id="ledText">no bridge</span></span>
+    </div>
+    <div class="sliders">
+      <label>Cell <input type="range" id="cellMs" min="100" max="1000" step="50" value="400"><b id="cellMsVal">400ms</b></label>
+      <label>Gap <input type="range" id="gapMs" min="0" max="500" step="25" value="150"><b id="gapMsVal">150ms</b></label>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>Byte stream</h2>
+    <pre class="bytes" id="bytes"></pre>
+  </div>
+</main>
+
+<script src="extension/braille.js"></script>
+<script>
+(function () {
+  'use strict';
+  var B = self.Braille;
+  var $ = function (id) { return document.getElementById(id); };
+
+  var cells = [];
+  var boxes = [];
+
+  /* ---------- render ---------- */
+
+  function options() {
+    return {
+      capitals: $('capitals').checked,
+      numbers: $('numbers').checked,
+      punctuation: $('punctuation').checked
+    };
+  }
+
+  function timing() {
+    return { cellMs: +$('cellMs').value, gapMs: +$('gapMs').value, spaceMs: +$('cellMs').value };
+  }
+
+  function render() {
+    var text = $('input').value;
+    var o = options();
+    cells = B.textToCells(text, o);
+
+    $('unicode').textContent = cells.map(function (c) { return c.unicode; }).join('') || '⠀';
+    $('statCells').textContent = cells.length;
+    $('statChars').textContent = text.length;
+
+    var ms = B.estimateMs(cells, timing());
+    $('statTime').textContent = ms < 60000
+      ? (ms / 1000).toFixed(1) + 's'
+      : Math.floor(ms / 60000) + 'm ' + Math.round((ms % 60000) / 1000) + 's';
+
+    var dropped = B.droppedChars(text, o);
+    var keys = Object.keys(dropped);
+    $('statDropped').textContent = keys.length
+      ? 'dropping ' + keys.map(function (k) {
+          return (k === ' ' ? 'space' : k) + (dropped[k] > 1 ? '×' + dropped[k] : '');
+        }).join(' ')
+      : '';
+
+    var frag = document.createDocumentFragment();
+    boxes = cells.map(function (c) {
+      var box = document.createElement('div');
+      box.className = 'cellbox' + (c.kind.indexOf('sign') !== -1 ? ' sign' : '');
+      var grid = document.createElement('div');
+      grid.className = 'grid';
+      [1, 4, 2, 5, 3, 6].forEach(function (d) {
+        var i = document.createElement('i');
+        if (c.dots.indexOf(d) !== -1) i.className = 'on';
+        grid.appendChild(i);
+      });
+      var cap = document.createElement('div');
+      cap.className = 'cap';
+      cap.textContent = c.kind === 'space' ? '␣'
+        : c.kind === 'capital-sign' ? 'CAP'
+        : c.kind === 'number-sign' ? 'NUM'
+        : c.ch;
+      var byte = document.createElement('div');
+      byte.className = 'byte';
+      byte.textContent = c.n;
+      box.appendChild(grid); box.appendChild(cap); box.appendChild(byte);
+      box.title = c.label + ' - dots ' + (c.dots.join('') || 'none') + ' - byte ' + c.n;
+      frag.appendChild(box);
+      return box;
+    });
+    $('cells').replaceChildren(frag);
+
+    $('bytes').textContent = cells.map(function (c) { return c.n; }).join(', ') || '(empty)';
+  }
+
+  /* ---------- bridge ---------- */
+
+  var ws = null, wsReady = false, retry = null;
+
+  function setLed(state, text) {
+    $('led').className = 'led ' + state;
+    $('ledText').textContent = text;
+  }
+
+  function connect() {
+    clearTimeout(retry);
+    setLed('connecting', 'connecting');
+    try { ws = new WebSocket('ws://127.0.0.1:8787'); }
+    catch (e) { wsReady = false; setLed('disconnected', 'no bridge'); return; }
+
+    ws.onopen = function () {
+      wsReady = true;
+      setLed('connected', 'bridge connected');
+      send({ cmd: 'DUR', ms: +$('cellMs').value });
+      send({ cmd: 'MODE', mode: 'READ' });
+    };
+    ws.onclose = function () {
+      wsReady = false;
+      setLed('disconnected', 'no bridge');
+      retry = setTimeout(connect, 2000);
+    };
+    ws.onerror = function () { wsReady = false; };
+  }
+
+  function send(obj) {
+    if (ws && ws.readyState === 1) { ws.send(JSON.stringify(obj)); return true; }
+    return false;
+  }
+
+  /* ---------- playback ---------- */
+
+  var timer = null, idx = 0, token = 0;
+
+  function highlight(i) {
+    boxes.forEach(function (b, j) { b.classList.toggle('active', j === i); });
+    if (boxes[i]) boxes[i].scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  }
+
+  function stop() {
+    token++;
+    clearTimeout(timer);
+    timer = null;
+    send({ cmd: 'CLEAR' });
+    highlight(-1);
+    $('play').disabled = false;
+    $('stop').disabled = true;
+  }
+
+  function play() {
+    stop();
+    if (!cells.length) return;
+    var my = ++token;
+    var t = timing();
+    idx = 0;
+    $('play').disabled = true;
+    $('stop').disabled = false;
+
+    (function step() {
+      if (my !== token) return;
+      if (idx >= cells.length) { stop(); return; }
+      var c = cells[idx];
+      highlight(idx);
+      send({ cmd: 'CELL', n: c.n });
+      idx++;
+      var hold = c.n === 0 ? t.spaceMs : t.cellMs + t.gapMs;
+      timer = setTimeout(step, hold);
+    })();
+  }
+
+  /* ---------- wiring ---------- */
+
+  ['input', 'capitals', 'numbers', 'punctuation'].forEach(function (id) {
+    $(id).addEventListener('input', render);
+    $(id).addEventListener('change', render);
+  });
+
+  ['cellMs', 'gapMs'].forEach(function (id) {
+    $(id).addEventListener('input', function () {
+      $(id + 'Val').textContent = $(id).value + 'ms';
+      if (id === 'cellMs') send({ cmd: 'DUR', ms: +$(id).value });
+      render();
+    });
+  });
+
+  $('play').addEventListener('click', play);
+  $('stop').addEventListener('click', stop);
+  $('copy').addEventListener('click', function () {
+    navigator.clipboard.writeText(cells.map(function (c) { return c.n; }).join(', '));
+    var b = $('copy'), old = b.textContent;
+    b.textContent = 'Copied';
+    setTimeout(function () { b.textContent = old; }, 1100);
+  });
+
+  render();
+  connect();
+})();
+</script>
+</body>
+</html>

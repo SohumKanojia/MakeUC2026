@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Braille Glove</title>
+<style>
+  :root { color-scheme: dark; }
+  body {
+    width: 300px; margin: 0; padding: 14px;
+    font: 13px/1.4 ui-sans-serif, system-ui, -apple-system, Segoe UI, sans-serif;
+    background: #101014; color: #e9e9ef;
+  }
+  h1 { font-size: 14px; margin: 0 0 10px; display: flex; align-items: center; gap: 8px; }
+  .dot { width: 9px; height: 9px; border-radius: 50%; background: #6b6b78; flex: none; }
+  .dot.connected { background: #3ddc84; box-shadow: 0 0 8px #3ddc8488; }
+  .dot.connecting { background: #ffb43a; }
+  .dot.disconnected { background: #ff5a5a; }
+  .muted { color: #8d8d9b; font-size: 11px; }
+  fieldset { border: 1px solid #2a2a35; border-radius: 8px; margin: 0 0 10px; padding: 9px 10px 11px; }
+  legend { color: #8d8d9b; font-size: 11px; padding: 0 4px; }
+  label.row { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 6px 0; }
+  input[type=range] { width: 130px; }
+  select {
+    background: #18181f; color: #e9e9ef; border: 1px solid #2a2a35;
+    border-radius: 6px; padding: 4px 6px; font: inherit; font-size: 12px;
+  }
+  input[type=text] {
+    width: 100%; box-sizing: border-box; background: #18181f; color: #e9e9ef;
+    border: 1px solid #2a2a35; border-radius: 6px; padding: 6px 8px; font: inherit;
+  }
+  button {
+    background: #22222c; color: #e9e9ef; border: 1px solid #343440;
+    border-radius: 6px; padding: 6px 10px; font: inherit; cursor: pointer;
+  }
+  button:hover { background: #2c2c38 }
+  button.primary { background: #ffb43a; color: #1a1205; border-color: #ffb43a; font-weight: 600 }
+  .btnrow { display: flex; gap: 6px; margin-top: 8px; }
+  .cellview { display: flex; align-items: center; gap: 12px; }
+  .cell { display: grid; grid-template-columns: 15px 15px; grid-gap: 6px; }
+  .cell i { width: 15px; height: 15px; border-radius: 50%; background: #26262f; border: 1px solid #35353f; }
+  .cell i.on { background: #ffb43a; border-color: #ffb43a; box-shadow: 0 0 10px #ffb43a88 }
+  .big { font: 700 26px/1 ui-monospace, Consolas, monospace; min-width: 26px }
+  code { color: #ffb43a }
+  .bytes {
+    font: 11px/1.5 ui-monospace, Consolas, monospace; color: #ffb43a;
+    background: #0b0b0f; border: 1px solid #22222c; border-radius: 6px;
+    padding: 7px 8px; max-height: 76px; overflow: auto;
+    white-space: pre-wrap; word-break: break-word; overflow-wrap: anywhere;
+  }
+  .bytes .txt { color: #8d8d9b; display: block; margin-bottom: 3px }
+  .hist {
+    margin-top: 8px; max-height: 120px; overflow: auto;
+    font: 10px/1.45 ui-monospace, Consolas, monospace; color: #70707e;
+  }
+  .hist div { padding: 2px 0; border-top: 1px solid #1d1d25; cursor: pointer }
+  .hist div:hover { color: #e9e9ef }
+  .hist b { color: #a0a0ae; font-weight: 600 }
+  .chk { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; color: #8d8d9b }
+  .chk input { margin: 0 }
+</style>
+</head>
+<body>
+  <h1><span id="statusDot" class="dot disconnected"></span>Braille Glove
+    <span id="statusText" class="muted" style="margin-left:auto"></span>
+  </h1>
+
+  <fieldset>
+    <legend>Mode 1 &mdash; mouse hover</legend>
+    <label class="row"><span>Enabled</span><input type="checkbox" id="enabled"></label>
+    <div class="muted" id="hoverPaused" style="display:none;color:#ffb43a">paused while the page is being read</div>
+    <label class="row"><span>Say element type</span><input type="checkbox" id="sayType"></label>
+    <label class="row"><span>On-screen cell</span><input type="checkbox" id="showOverlay"></label>
+    <label class="row"><span>Dwell <b id="dwellVal"></b></span>
+      <input type="range" id="dwellMs" min="0" max="800" step="50"></label>
+    <label class="row"><span>Cell <b id="cellVal"></b></span>
+      <input type="range" id="cellMs" min="100" max="1000" step="50"></label>
+    <label class="row"><span>Max chars <b id="maxVal"></b></span>
+      <input type="range" id="maxChars" min="5" max="60" step="5"></label>
+  </fieldset>
+
+  <fieldset>
+    <legend>Now playing</legend>
+    <div class="cellview">
+      <div class="cell">
+        <i data-d="1"></i><i data-d="4"></i>
+        <i data-d="2"></i><i data-d="5"></i>
+        <i data-d="3"></i><i data-d="6"></i>
+      </div>
+      <div>
+        <div class="big" id="curChar">&nbsp;</div>
+        <div class="muted" id="curByte">idle</div>
+      </div>
+    </div>
+  </fieldset>
+
+  <fieldset>
+    <legend>Mode 2 &mdash; read the page</legend>
+    <div class="btnrow">
+      <button class="primary" id="readPage">Read whole page</button>
+      <button id="stopRead">Stop</button>
+    </div>
+    <div class="muted" id="readProgress" style="margin-top:7px">idle</div>
+    <label class="row" style="margin-top:8px"><span>Covers</span>
+      <select id="scope">
+        <option value="full">Whole page</option>
+        <option value="visible">On screen now</option>
+        <option value="article">Main article</option>
+      </select>
+    </label>
+    <label class="row"><span>Summarize with Gemini</span><input type="checkbox" id="summarize"></label>
+    <label class="row"><span>Summary length <b id="sumVal"></b></span>
+      <input type="range" id="summaryChars" min="40" max="400" step="20"></label>
+    <div class="muted" id="geminiState">checking…</div>
+    <div id="lastSummary" class="muted" style="margin-top:6px"></div>
+  </fieldset>
+
+  <fieldset>
+    <legend>Page capture &mdash; DOM, for testing</legend>
+    <div class="btnrow">
+      <button id="capture">Capture page</button>
+      <button id="copyCapture">Copy text</button>
+      <button id="copyCaptureBytes">Copy bytes</button>
+    </div>
+    <div class="muted" id="captureStats" style="margin-top:7px">not captured yet</div>
+    <pre class="bytes" id="captureText" style="margin-top:6px;max-height:120px;color:#c8c8d4"></pre>
+  </fieldset>
+
+  <fieldset>
+    <legend>Byte output</legend>
+    <div id="lastBytes" class="bytes">nothing yet &mdash; hover something on the page</div>
+    <div class="btnrow">
+      <button id="copyBytes">Copy</button>
+      <button id="copyAll">Copy all</button>
+      <button id="clearBytes">Clear</button>
+      <label class="chk"><input type="checkbox" id="logToPage"> page console</label>
+    </div>
+    <div id="byteHistory" class="hist"></div>
+  </fieldset>
+
+  <fieldset>
+    <legend>Test a word</legend>
+    <input type="text" id="testText" value="hello" placeholder="type a word">
+    <div class="btnrow">
+      <button class="primary" id="send">Send to glove</button>
+      <button id="stop">Stop</button>
+    </div>
+  </fieldset>
+
+  <fieldset>
+    <legend>Bridge</legend>
+    <input type="text" id="bridgeUrl" spellcheck="false">
+    <div class="btnrow"><button id="reconnect">Reconnect</button></div>
+    <div class="muted" id="hint" style="margin-top:7px"></div>
+  </fieldset>
+
+  <script src="braille.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>

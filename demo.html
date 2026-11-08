@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Braille Glove Demo Page</title>
+<style>
+  :root { --bg:#fbfbfd; --fg:#16161c; --muted:#5f5f70; --line:#e2e2ea; --accent:#b96a00; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#101014; --fg:#e9e9ef; --muted:#8d8d9b; --line:#2a2a35; --accent:#ffb43a; }
+  }
+  * { box-sizing: border-box }
+  body {
+    margin: 0; padding: 40px 16px 120px; background: var(--bg); color: var(--fg);
+    font: 16px/1.6 ui-sans-serif, system-ui, -apple-system, Segoe UI, sans-serif;
+  }
+  main { max-width: 720px; margin: 0 auto }
+  h1 { font-size: 30px; margin: 0 0 6px }
+  h2 { font-size: 19px; margin: 36px 0 10px; padding-bottom: 6px; border-bottom: 1px solid var(--line) }
+  p.lead { color: var(--muted); margin-top: 0 }
+  .grid { display: flex; flex-wrap: wrap; gap: 10px }
+  button, a.btn {
+    font: inherit; padding: 10px 16px; border-radius: 8px; border: 1px solid var(--line);
+    background: transparent; color: var(--fg); cursor: pointer; text-decoration: none;
+  }
+  button:hover, a.btn:hover { border-color: var(--accent); color: var(--accent) }
+  form { display: grid; gap: 12px; max-width: 420px }
+  label { display: grid; gap: 4px; font-size: 14px; color: var(--muted) }
+  input, select, textarea {
+    font: inherit; padding: 9px 11px; border-radius: 8px;
+    border: 1px solid var(--line); background: transparent; color: var(--fg);
+  }
+  ul { padding-left: 20px }
+  .note { font-size: 14px; color: var(--muted); border-left: 3px solid var(--accent); padding-left: 12px }
+</style>
+</head>
+<body>
+<main>
+  <h1>Braille Glove Demo Page</h1>
+  <p class="lead">Hover anything here. After a short dwell the label is brailled onto the palm.</p>
+
+  <p class="note">The cell in the bottom-right corner mirrors the motors, so people watching
+  can see what the hand is feeling. Turn it off in the popup for a blind-only run.</p>
+
+  <h2>Buttons</h2>
+  <div class="grid">
+    <button>save</button>
+    <button>cancel</button>
+    <button aria-label="delete file">Trash</button>
+    <button>send</button>
+    <button>yes</button>
+    <button>no</button>
+  </div>
+
+  <h2>Links</h2>
+  <div class="grid">
+    <a class="btn" href="#home">home</a>
+    <a class="btn" href="#about">about us</a>
+    <a class="btn" href="#help">help</a>
+  </div>
+
+  <h2>A form</h2>
+  <form onsubmit="event.preventDefault()">
+    <label>Name<input type="text" placeholder="your name"></label>
+    <label>Email<input type="email" placeholder="email address"></label>
+    <label>City
+      <select>
+        <option>cincinnati</option>
+        <option>dayton</option>
+        <option>columbus</option>
+      </select>
+    </label>
+    <label>Message<textarea rows="3" placeholder="say hello"></textarea></label>
+    <button type="submit">submit</button>
+  </form>
+
+  <h2>Images with alt text</h2>
+  <div class="grid">
+    <img src="data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='90' height='70'%3E%3Crect width='90' height='70' rx='8' fill='%23ffb43a'/%3E%3C/svg%3E" alt="orange square" width="90" height="70">
+    <img src="data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='90' height='70'%3E%3Ccircle cx='45' cy='35' r='30' fill='%236aa9ff'/%3E%3C/svg%3E" alt="blue circle" width="90" height="70">
+  </div>
+
+  <h2>Short paragraphs</h2>
+  <p>a glove that turns text into touch</p>
+  <p>six motors on the palm form one braille cell</p>
+  <p>the mouse decides what you feel</p>
+
+  <h2>A list</h2>
+  <ul>
+    <li>hover to read</li>
+    <li>thumb tap to read the page</li>
+    <li>fingertips to type back</li>
+  </ul>
+
+  <h2>Long text for the extract test</h2>
+  <article>
+    <p>This paragraph exists so the page-extraction path has something real to chew on.
+    At four hundred milliseconds a cell, a thousand characters takes roughly seven minutes,
+    which is exactly why the summarization step matters later. For now the reader simply
+    walks the text one cell at a time and stops the moment the mouse moves somewhere else.</p>
+  </article>
+</main>
+</body>
+</html>
